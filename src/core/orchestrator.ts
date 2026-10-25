@@ -4,6 +4,9 @@ import { ScanEventBus } from './events.js';
 import { loadConfig } from './config.js';
 import type { Config, ScanResult, TargetMetadata, Finding, SandboxEvent, Verdict } from './types.js';
 
+import { PackageFetcher } from '../fetch/fetcher.js';
+import type { FetchedPackage } from '../fetch/types.js';
+
 export const EXIT_CODES = {
   SAFE: 0,
   SUSPICIOUS: 10,
@@ -17,57 +20,53 @@ export interface ScanOptions {
   timeout?: number;
   reportHtml?: string;
   config?: Partial<Config>;
+  keepExtracted?: boolean;
 }
 
 export class Orchestrator {
   public readonly eventBus: ScanEventBus;
   public readonly config: Config;
+  private readonly fetcher: PackageFetcher;
 
   constructor(eventBus?: ScanEventBus, configOverrides?: Partial<Config>) {
     this.eventBus = eventBus || new ScanEventBus();
     this.config = loadConfig(configOverrides);
+    this.fetcher = new PackageFetcher();
   }
 
   public async scan(targetInput: string, options: ScanOptions = {}): Promise<ScanResult> {
     const startTime = Date.now();
-    const isLocal = await this.isLocalPath(targetInput);
-
-    let targetMetadata: TargetMetadata;
-
-    if (isLocal) {
-      const resolved = path.resolve(targetInput);
-      let pkgName = path.basename(resolved);
-      let pkgVersion = '0.0.0';
-
-      try {
-        const pkgPath = path.join(resolved, 'package.json');
-        const pkgContent = await fs.readFile(pkgPath, 'utf8');
-        const pkg = JSON.parse(pkgContent);
-        if (pkg.name) pkgName = pkg.name;
-        if (pkg.version) pkgVersion = pkg.version;
-      } catch {
-        // Fall back to folder name if no package.json
-      }
-
-      targetMetadata = {
-        name: pkgName,
-        version: pkgVersion,
-        ecosystem: 'local',
-        resolvedPath: resolved,
-      };
-    } else {
-      targetMetadata = {
-        name: targetInput,
-        ecosystem: 'npm',
-      };
-    }
 
     // 1. Stage: Resolve & Fetch
-    this.eventBus.emit('stage:start', { stage: 'fetch', target: targetMetadata.name });
+    this.eventBus.emit('stage:start', { stage: 'fetch', target: targetInput });
     this.eventBus.emit('stage:progress', {
       stage: 'fetch',
-      message: `Inspecting target: ${targetMetadata.name} (${targetMetadata.ecosystem})`,
+      message: `Fetching & inspecting target: ${targetInput}`,
     });
+
+    let fetched: FetchedPackage;
+    try {
+      fetched = await this.fetcher.fetchAndInspect(targetInput);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.eventBus.emit('stage:complete', { stage: 'fetch', status: 'error', message: msg });
+      throw err;
+    }
+
+    const targetMetadata: TargetMetadata = fetched.target;
+
+    this.eventBus.emit('stage:progress', {
+      stage: 'fetch',
+      message: `Resolved: ${targetMetadata.name}@${targetMetadata.version || '0.0.0'} (${targetMetadata.ecosystem})`,
+    });
+
+    if (fetched.manifest.lifecycleScripts.length > 0) {
+      this.eventBus.emit('stage:progress', {
+        stage: 'fetch',
+        message: `Found ${fetched.manifest.lifecycleScripts.length} lifecycle script(s): ${fetched.manifest.lifecycleScripts.map((s) => s.name).join(', ')}`,
+      });
+    }
+
     this.eventBus.emit('stage:complete', { stage: 'fetch', status: 'success' });
 
     // 2. Stage: Static Checks (skeleton in Phase 1)
@@ -137,26 +136,11 @@ export class Orchestrator {
       verdictReasons,
     };
 
+    if (!options.keepExtracted) {
+      await fetched.cleanup();
+    }
+
     this.eventBus.emit('scan:complete', scanResult);
     return scanResult;
-  }
-
-  private async isLocalPath(input: string): Promise<boolean> {
-    if (
-      input.startsWith('.') ||
-      input.startsWith('/') ||
-      input.startsWith('\\') ||
-      /^[a-zA-Z]:\\/.test(input) ||
-      input.includes(path.sep)
-    ) {
-      return true;
-    }
-
-    try {
-      const stats = await fs.stat(path.resolve(input));
-      return stats.isDirectory() || stats.isFile();
-    } catch {
-      return false;
-    }
   }
 }

@@ -53,7 +53,7 @@ Target (npm / path)
 |---|---|---|
 | CLI skeleton (`scan`, `doctor`) | **Complete** | Phase 1 (exit codes, terminal & JSON reports, event bus) |
 | Test fixtures (benign + malicious servers) | **Complete** | Phase 1 (benign, exfil, poisoned-description, postinstall) |
-| Fetch & inspect (npm packages) | **Planned** | Phase 2 |
+| Fetch & inspect (npm packages) | **Complete** | Phase 2 (registry resolution, hash verification, safe extraction) |
 | Docker sandbox + canary secrets + monitoring | **Planned** | Phase 3 |
 | MCP client harness (initialize, list tools, call tools) | **Planned** | Phase 3 |
 | Verdict engine | **Planned** | Phase 3 |
