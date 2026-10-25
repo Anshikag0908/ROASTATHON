@@ -69,11 +69,32 @@ export class Orchestrator {
 
     this.eventBus.emit('stage:complete', { stage: 'fetch', status: 'success' });
 
-    // 2. Stage: Static Checks (skeleton in Phase 1)
+    // 2. Stage: Static Checks
     this.eventBus.emit('stage:start', { stage: 'static', target: targetMetadata.name });
-    const findings: Finding[] = [];
     this.eventBus.emit('stage:progress', { stage: 'static', message: 'Running static analysis rules...' });
-    this.eventBus.emit('stage:complete', { stage: 'static', status: 'success' });
+
+    const staticChecker = new (await import('../static/runner.js')).StaticChecker();
+    const findings: Finding[] = [];
+
+    const staticFindings = await staticChecker.scanDirectory(
+      fetched.extractedDir,
+      fetched.manifest,
+      this.config.networkAllowlist
+    );
+
+    findings.push(...staticFindings);
+    for (const f of staticFindings) {
+      this.eventBus.emit('finding:discovered', f);
+    }
+
+    this.eventBus.emit('stage:progress', {
+      stage: 'static',
+      message: `Completed static checks: ${staticFindings.length} finding(s) discovered.`,
+    });
+    this.eventBus.emit('stage:complete', {
+      stage: 'static',
+      status: staticFindings.some((f) => f.severity === 'high' || f.severity === 'critical') ? 'warn' : 'success',
+    });
 
     // 3. Stage: LLM Triage (skeleton in Phase 1)
     const llmUsed = !options.noLlm && Boolean(this.config.geminiApiKey || this.config.openaiApiKey || this.config.anthropicApiKey);
@@ -120,6 +141,15 @@ export class Orchestrator {
           message: 'ALERT: Planted canary credential file was opened/read.',
           detail: event.detail,
         });
+      }
+    }
+
+    // Inspect live discovered tool descriptions from the live sandbox harness
+    if (sandboxSummary.discoveredToolDetails && sandboxSummary.discoveredToolDetails.length > 0) {
+      const liveToolFindings = staticChecker.inspectLiveTools(sandboxSummary.discoveredToolDetails);
+      for (const lf of liveToolFindings) {
+        findings.push(lf);
+        this.eventBus.emit('finding:discovered', lf);
       }
     }
 

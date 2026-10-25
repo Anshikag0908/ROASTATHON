@@ -55,7 +55,7 @@ People install MCP (Model Context Protocol) servers blindly. This is risky becau
 | MCP client harness (initialize, list tools, call tools) | Complete (Phase 3) |
 | Verdict engine | Complete (Phase 3) |
 | Terminal report + JSON output | Complete (Phase 3) |
-| Static checks | Planned |
+| Static checks | Complete (Phase 4) |
 | LLM triage | Planned |
 | `install` gating | Planned |
 | Result caching | Planned |

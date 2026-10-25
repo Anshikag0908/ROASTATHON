@@ -58,13 +58,27 @@ Target (npm / path)
 | MCP client harness (initialize, list tools, call tools) | **Complete** | Phase 3 (stdio JSON-RPC driver, schema arg generation) |
 | Verdict engine | **Complete** | Phase 3 (D1, D2, D3, fail-closed incomplete analysis) |
 | Terminal report + JSON output | **Complete** | Phase 3 (evidence citation, formatted verdicts, clean JSON) |
-| Static checks | **Planned** | Phase 4 |
+| Static checks | **Complete** | Phase 4 (7 rules: paths, lifecycle, URLs, exec, eval, env, injection) |
 | LLM triage | **Planned** | Phase 5 |
 | `install` gating | **Planned** | Phase 6 |
 | Result caching | **Planned** | Phase 7 |
 | HTML report / live dashboard | **Planned** | Phase 7 |
 | PyPI / other ecosystems | **Planned (post-hackathon)** | Out of current MVP |
 | Version-diff / "rug-pull" detection | **Planned (post-hackathon)** | Out of current MVP |
+
+---
+
+## Implemented Static Rules Catalog
+
+| Rule ID | Family | Severity | Description |
+|---|---|---|---|
+| `STATIC-SENSITIVE-PATH-001` | `SENSITIVE-PATH` | Medium / High | References to `~/.ssh`, `.aws`, `.env`, `.npmrc`, `.kube`, wallet files (raised to high if network calls present) |
+| `STATIC-INSTALL-SCRIPT-001` | `INSTALL-SCRIPT` | Medium / High | Manifest `preinstall`, `install`, `postinstall` scripts (raised to high if remote commands/shell present) |
+| `STATIC-NETWORK-DEST-001` | `NETWORK-DEST` | Medium | Hardcoded external IP addresses and non-allowlisted remote URLs |
+| `STATIC-EXEC-001` | `EXEC` | Medium | Invocation of `child_process`, `exec`, or `spawn` |
+| `STATIC-OBFUSCATION-001` | `OBFUSCATION` | High | Dynamic `eval`, `new Function`, clustered hex escapes, or base64 decoding fed to execution |
+| `STATIC-ENV-HARVEST-001` | `ENV-HARVEST` | Medium | Bulk enumeration of `process.env` or access to sensitive credential variable names |
+| `STATIC-TOOL-DESC-INJECTION-001` | `TOOL-DESC-INJECTION` | High | Prompt injection patterns and hidden/zero-width unicode characters in tool descriptions and outputs |
 
 ---
 

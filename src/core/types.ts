@@ -58,6 +58,7 @@ export interface SandboxExecutionSummary {
   events: SandboxEvent[];
   toolsDiscovered: string[];
   toolsCalled: string[];
+  discoveredToolDetails?: Array<{ name: string; description?: string; inputSchema?: Record<string, any> }>;
 }
 
 export interface LLMTriageSummary {

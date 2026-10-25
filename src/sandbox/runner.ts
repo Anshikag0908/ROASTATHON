@@ -199,6 +199,7 @@ export class SandboxRunner {
       events,
       toolsDiscovered: harnessResult.toolsDiscovered.map((t) => t.name),
       toolsCalled: harnessResult.toolsCalled,
+      discoveredToolDetails: harnessResult.toolsDiscovered,
     };
   }
 }
