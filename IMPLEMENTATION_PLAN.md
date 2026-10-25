@@ -487,7 +487,13 @@ All fixtures live in `fixtures/`, are clearly labeled, and malicious ones **only
 
 | Date | Decision | Verified how | Approved by |
 |---|---|---|---|
-| | | | |
+| 2026-10-25 | Runtime: TypeScript + Node.js (v24), npm | Node v24.22.1 & npm 11.19.1 verified on host | User ("ok") |
+| 2026-10-25 | LLM: Configurable provider (Gemini default) with --no-llm offline fallback | .env.example / CLI flags | User ("ok") |
+| 2026-10-25 | Target scope: npm stdio packages + local paths | CLI interface specification | User ("ok") |
+| 2026-10-25 | Install behavior: print config/install command safely on SAFE | CLI specification | User ("ok") |
+| 2026-10-25 | Defaults: 30s total sandbox timeout, 5s tool timeout, 0.5 CPU, 512MB RAM, 64 PIDs, node:20-alpine image | Config module spec | User ("ok") |
+| 2026-10-25 | Reports: Terminal summary + JSON for MVP, HTML/live in Phase 7 | Reporter spec | User ("ok") |
+| 2026-10-25 | Commit discipline: `phase-N:` prefix, one concern per commit | Git log | User ("ok") |
 
 ---
 
