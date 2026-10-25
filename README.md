@@ -59,10 +59,10 @@ Target (npm / path)
 | Verdict engine | **Complete** | Phase 3 (D1, D2, D3, fail-closed incomplete analysis) |
 | Terminal report + JSON output | **Complete** | Phase 3 (evidence citation, formatted verdicts, clean JSON) |
 | Static checks | **Complete** | Phase 4 (7 rules: paths, lifecycle, URLs, exec, eval, env, injection) |
-| LLM triage | **Planned** | Phase 5 |
-| `install` gating | **Planned** | Phase 6 |
-| Result caching | **Planned** | Phase 7 |
-| HTML report / live dashboard | **Planned** | Phase 7 |
+| LLM triage | **Complete** | Phase 5 (untrusted-data framing, Gemini/OpenAI/Anthropic/Mock, schema validation, retry-once, prompt injection defense, D3 rule) |
+| `install` gating | **Complete** | Phase 6 (TOCTOU version & integrity verification, DANGEROUS hard-block, SUSPICIOUS gating/--yes, safe client config generation) |
+| Result caching | **Complete** | Phase 7 (SHA-256 cache key, fail-closed caching policy, --no-cache bypass) |
+| HTML report / live dashboard | **Complete** | Phase 7 (standalone responsive HTML dashboard report, real-time SSE live web dashboard) |
 | PyPI / other ecosystems | **Planned (post-hackathon)** | Out of current MVP |
 | Version-diff / "rug-pull" detection | **Planned (post-hackathon)** | Out of current MVP |
 
@@ -91,7 +91,7 @@ node dist/cli/index.js doctor
 ```
 
 ### 2. Scan an MCP Server Target
-Scan a local server directory or test fixture:
+Scan a local server directory or test fixture without installing:
 ```bash
 # Formatted terminal output
 node dist/cli/index.js scan fixtures/benign-server
@@ -103,7 +103,43 @@ node dist/cli/index.js scan fixtures/benign-server --json
 node dist/cli/index.js scan fixtures/benign-server --report scan-report.json
 ```
 
-### 3. Run Test Suite
+### 3. Safely Gate MCP Server Installation
+Verify a server through the full pipeline before installing or adding to your MCP client config:
+```bash
+# Gated install: blocks DANGEROUS, prompts on SUSPICIOUS, outputs client config on SAFE
+node dist/cli/index.js install fixtures/benign-server
+
+# Machine-readable JSON output with verified pinned spec & config snippet
+node dist/cli/index.js install fixtures/benign-server --json
+
+# Non-interactive override for CI/automation
+node dist/cli/index.js install fixtures/benign-server --yes
+
+# TOCTOU protection: enforce expected version and tarball integrity hash
+node dist/cli/index.js install <package> --expected-version 1.0.0 --expected-integrity sha512-...
+```
+
+### 4. Interactive HTML Reports & Live Dashboard
+Generate a standalone HTML dashboard report or launch the real-time pipeline monitoring dashboard:
+```bash
+# Save an interactive standalone HTML report
+node dist/cli/index.js scan fixtures/benign-server --html scan-report.html
+
+# Launch real-time web dashboard during scan
+node dist/cli/index.js scan fixtures/benign-server --dashboard
+
+# Run standalone live dashboard server
+node dist/cli/index.js dashboard --port 3100
+```
+
+### 5. Result Caching
+mcpguard caches clean, completed scan results by package version and tarball integrity hash:
+```bash
+# Force fresh scan, bypassing cache
+node dist/cli/index.js scan fixtures/benign-server --no-cache
+```
+
+### 6. Run Test Suite
 ```bash
 npm test
 ```

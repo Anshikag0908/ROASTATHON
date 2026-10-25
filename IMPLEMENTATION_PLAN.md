@@ -56,10 +56,10 @@ People install MCP (Model Context Protocol) servers blindly. This is risky becau
 | Verdict engine | Complete (Phase 3) |
 | Terminal report + JSON output | Complete (Phase 3) |
 | Static checks | Complete (Phase 4) |
-| LLM triage | Planned |
-| `install` gating | Planned |
-| Result caching | Planned |
-| HTML report / live dashboard | Planned |
+| LLM triage | Complete (Phase 5) |
+| `install` gating | Complete (Phase 6) |
+| Result caching | Complete (Phase 7) |
+| HTML report / live dashboard | Complete (Phase 7) |
 | PyPI / other ecosystems | Planned (post-hackathon) |
 | Version-diff / "rug-pull" detection | Planned (post-hackathon) |
 
@@ -495,6 +495,9 @@ All fixtures live in `fixtures/`, are clearly labeled, and malicious ones **only
 | 2026-10-25 | Reports: Terminal summary + JSON for MVP, HTML/live in Phase 7 | Reporter spec | User ("ok") |
 | 2026-10-25 | Commit discipline: `phase-N:` prefix, one concern per commit | Git log | User ("ok") |
 | 2026-10-25 | Phase 3 Sandbox & Sink: node:20-alpine with inotify-tools, internal Docker net, canary matcher, stdio MCP harness | Spike proposal approved | User ("ok") |
+| 2026-10-25 | Phase 5 LLM Triage: Gemini default + OpenAI/Anthropic/Mock, untrusted-data framing, retry-once, D3 rule verification, prompt injection defense | Verified via unit & e2e tests | Agent |
+| 2026-10-25 | Phase 6 Install Gating: mcpguard install with TOCTOU checks (pinned version & integrity hash), DANGEROUS hard-block, SUSPICIOUS confirmation/--yes, safe client config generation | Verified via unit & e2e tests | Agent |
+| 2026-10-25 | Phase 7 Polish: ScanCache with fail-closed rules, standalone responsive HTML report generator, and live SSE dashboard server | Verified via unit & integration tests | Agent |
 
 ---
 

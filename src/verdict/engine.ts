@@ -18,8 +18,15 @@ export class VerdictEngine {
     // Check sandbox events
     const hasCanaryInPayload = sandbox.events.some((e) => e.kind === 'canary_in_payload');
     const hasCanaryFileAccess = sandbox.events.some((e) => e.kind === 'canary_file_access');
-    const netConnectEvents = sandbox.events.filter((e) => e.kind === 'net_connect' || e.kind === 'net_dns');
-    const hasNetworkEgress = netConnectEvents.length > 0;
+
+    // Filter network events by allowlist
+    const nonAllowlistedNetEvents = sandbox.events.filter((e) => {
+      if (e.kind !== 'net_connect' && e.kind !== 'net_dns') return false;
+      const host = String(e.detail?.host || e.detail?.url || e.detail?.query || '');
+      if (!host) return true;
+      return !networkAllowlist.some((allowed) => host.toLowerCase().includes(allowed.toLowerCase()));
+    });
+    const hasNetworkEgress = nonAllowlistedNetEvents.length > 0;
 
     // Check static / LLM findings
     const staticInjectionHigh = findings.find(

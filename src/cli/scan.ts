@@ -9,6 +9,9 @@ export interface CliScanFlags {
   noLlm?: boolean;
   timeout?: string;
   report?: string;
+  html?: string;
+  noCache?: boolean;
+  dashboard?: boolean;
 }
 
 export async function scanCommand(target: string, flags: CliScanFlags): Promise<number> {
@@ -19,13 +22,28 @@ export async function scanCommand(target: string, flags: CliScanFlags): Promise<
   }
 
   const timeoutMs = flags.timeout ? parseInt(flags.timeout, 10) : undefined;
+  const isHtmlReport = flags.html || (flags.report && flags.report.endsWith('.html'));
+  const htmlPath = flags.html || (isHtmlReport ? flags.report : undefined);
+  const jsonPath = !isHtmlReport ? flags.report : undefined;
+
   const scanOptions: ScanOptions = {
     json: flags.json,
     noLlm: flags.noLlm,
     timeout: timeoutMs,
+    noCache: flags.noCache,
+    reportHtml: htmlPath,
   };
 
   const orchestrator = new Orchestrator();
+
+  let dashboardServer: any = null;
+  if (flags.dashboard) {
+    const { DashboardServer } = await import('../report/dashboard.js');
+    dashboardServer = new DashboardServer();
+    dashboardServer.attach(orchestrator.eventBus);
+    const port = await dashboardServer.start(orchestrator.config.dashboardPort || 3100);
+    console.log(pc.bold(pc.cyan(`\n🌐 Live Security Dashboard running at: http://127.0.0.1:${port}\n`)));
+  }
 
   if (!flags.json) {
     console.log(pc.bold(pc.cyan(`\n🛡️  mcpguard scanning target: ${sanitizeText(target)}\n`)));
@@ -59,11 +77,14 @@ export async function scanCommand(target: string, flags: CliScanFlags): Promise<
       printTerminalReport(result);
     }
 
-    if (flags.report) {
-      await writeJsonReport(result, flags.report);
+    if (jsonPath) {
+      await writeJsonReport(result, jsonPath);
       if (!flags.json) {
-        console.log(pc.green(`Report saved to ${flags.report}`));
+        console.log(pc.green(`JSON report saved to ${jsonPath}`));
       }
+    }
+    if (htmlPath && !flags.json) {
+      console.log(pc.green(`HTML report saved to ${htmlPath}`));
     }
 
     switch (result.verdict) {

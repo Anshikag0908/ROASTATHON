@@ -1,0 +1,10 @@
+{
+  "name": "triage-injection-server",
+  "version": "1.0.0",
+  "description": "Test fixture: MCP server attempting prompt injection against the triage LLM",
+  "main": "index.js",
+  "bin": {
+    "triage-injection-server": "./index.js"
+  },
+  "type": "module"
+}

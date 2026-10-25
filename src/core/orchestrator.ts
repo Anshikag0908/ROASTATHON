@@ -21,6 +21,9 @@ export interface ScanOptions {
   reportHtml?: string;
   config?: Partial<Config>;
   keepExtracted?: boolean;
+  llmProviderOverride?: any;
+  noCache?: boolean;
+  cacheDir?: string;
 }
 
 export class Orchestrator {
@@ -54,6 +57,31 @@ export class Orchestrator {
     }
 
     const targetMetadata: TargetMetadata = fetched.target;
+    const rulesetVersion = '0.1.0';
+    const mcpguardVersion = '0.1.0';
+
+    const cache = new (await import('./cache.js')).ScanCache({ cacheDir: options.cacheDir });
+    const cacheKey = cache.computeCacheKey(targetMetadata, rulesetVersion, mcpguardVersion);
+
+    if (!options.noCache) {
+      const cachedResult = await cache.get(cacheKey);
+      if (cachedResult) {
+        this.eventBus.emit('stage:progress', {
+          stage: 'fetch',
+          message: `CACHE HIT: Using verified cached scan result for ${targetMetadata.name}@${targetMetadata.version || '0.0.0'}`,
+        });
+        this.eventBus.emit('stage:complete', { stage: 'fetch', status: 'success' });
+        this.eventBus.emit('scan:complete', cachedResult);
+        if (!options.keepExtracted) {
+          await fetched.cleanup();
+        }
+        if (options.reportHtml) {
+          const { writeHtmlReport } = await import('../report/html.js');
+          await writeHtmlReport(cachedResult, options.reportHtml);
+        }
+        return cachedResult;
+      }
+    }
 
     this.eventBus.emit('stage:progress', {
       stage: 'fetch',
@@ -96,14 +124,71 @@ export class Orchestrator {
       status: staticFindings.some((f) => f.severity === 'high' || f.severity === 'critical') ? 'warn' : 'success',
     });
 
-    // 3. Stage: LLM Triage (skeleton in Phase 1)
-    const llmUsed = !options.noLlm && Boolean(this.config.geminiApiKey || this.config.openaiApiKey || this.config.anthropicApiKey);
+    // 3. Stage: LLM Triage
+    let llmSummary = {
+      used: false,
+      provider: undefined as string | undefined,
+      model: undefined as string | undefined,
+      suspicions: [] as string[],
+    };
+
+    const llmProvider = options.noLlm
+      ? null
+      : options.llmProviderOverride || (await import('../llm/factory.js')).createLLMProvider(this.config);
+
     this.eventBus.emit('stage:start', { stage: 'llm', target: targetMetadata.name });
-    this.eventBus.emit('stage:progress', {
-      stage: 'llm',
-      message: llmUsed ? 'Running LLM triage review...' : 'LLM triage skipped (--no-llm or no API key)',
-    });
-    this.eventBus.emit('stage:complete', { stage: 'llm', status: 'success' });
+
+    if (llmProvider && !options.noLlm) {
+      this.eventBus.emit('stage:progress', {
+        stage: 'llm',
+        message: `Running LLM triage review with ${llmProvider.name} (${llmProvider.model})...`,
+      });
+
+      const { LLMTriager } = await import('../llm/triage.js');
+      const triager = new LLMTriager(llmProvider, this.config.llmMaxTokens);
+
+      const triageResult = await triager.triage({
+        packageName: targetMetadata.name,
+        packageVersion: targetMetadata.version,
+        manifestSummary: {
+          main: fetched.manifest.main,
+          bin: fetched.manifest.bin,
+          scripts: fetched.manifest.scripts,
+          dependencies: fetched.manifest.dependencies,
+        },
+        staticFindings,
+      });
+
+      if (triageResult.used) {
+        llmSummary = {
+          used: true,
+          provider: triageResult.provider,
+          model: triageResult.model,
+          suspicions: triageResult.suspicions.map((s) => s.title),
+        };
+
+        for (const lf of triageResult.findings) {
+          findings.push(lf);
+          this.eventBus.emit('finding:discovered', lf);
+        }
+
+        this.eventBus.emit('stage:progress', {
+          stage: 'llm',
+          message: `LLM triage completed: ${triageResult.suspicions.length} suspicion(s) flagged.`,
+        });
+      }
+
+      this.eventBus.emit('stage:complete', {
+        stage: 'llm',
+        status: triageResult.suspicions.length > 0 ? 'warn' : 'success',
+      });
+    } else {
+      this.eventBus.emit('stage:progress', {
+        stage: 'llm',
+        message: 'LLM triage skipped (--no-llm or no API key configured).',
+      });
+      this.eventBus.emit('stage:complete', { stage: 'llm', status: 'success' });
+    }
 
     // 4. Stage: Sandbox Test
     this.eventBus.emit('stage:start', { stage: 'sandbox', target: targetMetadata.name });
@@ -151,6 +236,26 @@ export class Orchestrator {
         findings.push(lf);
         this.eventBus.emit('finding:discovered', lf);
       }
+
+      // Live tool triage with LLM if enabled
+      if (llmProvider && !options.noLlm) {
+        const { LLMTriager } = await import('../llm/triage.js');
+        const triager = new LLMTriager(llmProvider, this.config.llmMaxTokens);
+        const liveTriageResult = await triager.triage({
+          packageName: targetMetadata.name,
+          packageVersion: targetMetadata.version,
+          staticFindings: findings.filter((f) => f.source === 'static'),
+          tools: sandboxSummary.discoveredToolDetails,
+        });
+
+        if (liveTriageResult.findings.length > 0) {
+          for (const lf of liveTriageResult.findings) {
+            findings.push(lf);
+            this.eventBus.emit('finding:discovered', lf);
+          }
+          llmSummary.suspicions.push(...liveTriageResult.suspicions.map((s) => s.title));
+        }
+      }
     }
 
     this.eventBus.emit('stage:progress', {
@@ -181,18 +286,22 @@ export class Orchestrator {
       mcpguardVersion: '0.1.0',
       findings,
       sandbox: sandboxSummary,
-      llm: {
-        used: llmUsed,
-        provider: this.config.llmProvider,
-        model: this.config.llmModel,
-        suspicions: [],
-      },
+      llm: llmSummary,
       verdict: evaluation.verdict,
       verdictReasons: evaluation.reasons,
     };
 
+    if (!options.noCache) {
+      await cache.set(cacheKey, scanResult);
+    }
+
     if (!options.keepExtracted) {
       await fetched.cleanup();
+    }
+
+    if (options.reportHtml) {
+      const { writeHtmlReport } = await import('../report/html.js');
+      await writeHtmlReport(scanResult, options.reportHtml);
     }
 
     this.eventBus.emit('scan:complete', scanResult);

@@ -18,6 +18,7 @@ sandbox_events.jsonl
 tmp/
 temp/
 .tmp/
+.mcpguard/
 
 # Dependency and build directories
 node_modules/

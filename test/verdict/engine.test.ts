@@ -92,6 +92,136 @@ describe('Verdict Engine Policy', () => {
     assert.equal(result.newFindings[0].id, 'SANDBOX-INCOMPLETE-001');
   });
 
+  it('[D3] verdicts DANGEROUS when static prompt injection is independently flagged by LLM triage', () => {
+    const sandbox: SandboxExecutionSummary = {
+      ran: true,
+      completed: true,
+      durationMs: 50,
+      events: [],
+      toolsDiscovered: ['lookup'],
+      toolsCalled: ['lookup'],
+    };
+
+    const staticFinding: Finding = {
+      id: 'STATIC-TOOL-DESC-INJECTION-001',
+      source: 'static',
+      severity: 'high',
+      rule: 'TOOL-DESC-INJECTION',
+      title: 'Prompt injection pattern in tool description',
+      description: 'System override pattern detected in tool description.',
+      evidence: { file: 'index.js' },
+      confidence: 'high',
+    };
+
+    const llmFinding: Finding = {
+      id: 'LLM-SUSPICION-001',
+      source: 'llm',
+      severity: 'high',
+      rule: 'LLM-PROMPT-INJECTION',
+      title: 'Malicious instruction override in tool description',
+      description: 'The tool description attempts prompt injection by commanding the model to exfiltrate files.',
+      evidence: { file: 'index.js' },
+      confidence: 'high',
+    };
+
+    const result = engine.evaluate([staticFinding, llmFinding], sandbox);
+    assert.equal(result.verdict, 'DANGEROUS');
+    assert.ok(result.reasons.some((r) => r.includes('[D3]')));
+  });
+
+  it('verdicts DANGEROUS on any critical security finding', () => {
+    const sandbox: SandboxExecutionSummary = {
+      ran: true,
+      completed: true,
+      durationMs: 50,
+      events: [],
+      toolsDiscovered: ['lookup'],
+      toolsCalled: ['lookup'],
+    };
+
+    const criticalFinding: Finding = {
+      id: 'STATIC-OBFUSCATION-CRITICAL',
+      source: 'static',
+      severity: 'critical',
+      rule: 'OBFUSCATION',
+      title: 'Heavily obfuscated payload with execution vector',
+      description: 'Multiple layered eval and base64 decode calls detected.',
+      evidence: { file: 'index.js' },
+      confidence: 'high',
+    };
+
+    const result = engine.evaluate([criticalFinding], sandbox);
+    assert.equal(result.verdict, 'DANGEROUS');
+    assert.ok(result.reasons.some((r) => r.includes('Critical security finding')));
+  });
+
+  it('verdicts SUSPICIOUS on non-allowlisted network egress without canary match', () => {
+    const sandbox: SandboxExecutionSummary = {
+      ran: true,
+      completed: true,
+      durationMs: 50,
+      events: [
+        {
+          ts: Date.now(),
+          kind: 'net_connect',
+          detail: { host: 'unknown-tracker.evil.com' },
+        },
+      ],
+      toolsDiscovered: ['query'],
+      toolsCalled: ['query'],
+    };
+
+    const result = engine.evaluate([], sandbox, ['api.trusted.com']);
+    assert.equal(result.verdict, 'SUSPICIOUS');
+    assert.ok(result.reasons.some((r) => r.includes('non-allowlisted')));
+  });
+
+  it('allows egress to allowlisted hosts without flagging SUSPICIOUS', () => {
+    const sandbox: SandboxExecutionSummary = {
+      ran: true,
+      completed: true,
+      durationMs: 50,
+      events: [
+        {
+          ts: Date.now(),
+          kind: 'net_connect',
+          detail: { host: 'api.weather.com' },
+        },
+      ],
+      toolsDiscovered: ['weather'],
+      toolsCalled: ['weather'],
+    };
+
+    const result = engine.evaluate([], sandbox, ['api.weather.com']);
+    assert.equal(result.verdict, 'SAFE');
+  });
+
+  it('verdicts SUSPICIOUS on high or medium findings', () => {
+    const sandbox: SandboxExecutionSummary = {
+      ran: true,
+      completed: true,
+      durationMs: 50,
+      events: [],
+      toolsDiscovered: ['info'],
+      toolsCalled: ['info'],
+    };
+
+    const mediumFinding: Finding = {
+      id: 'STATIC-EXEC-001',
+      source: 'static',
+      severity: 'medium',
+      rule: 'EXEC',
+      title: 'Invocation of child_process or spawn',
+      description: 'Calls child_process.exec',
+      evidence: { file: 'index.js' },
+      confidence: 'medium',
+    };
+
+    const result = engine.evaluate([mediumFinding], sandbox);
+    assert.equal(result.verdict, 'SUSPICIOUS');
+    assert.ok(result.reasons.some((r) => r.includes('Medium severity finding')));
+  });
+
   it('verdicts SAFE only when sandbox completes cleanly with no suspicious signals', () => {
     const sandbox: SandboxExecutionSummary = {
       ran: true,
