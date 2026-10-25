@@ -1,0 +1,10 @@
+{
+  "name": "poisoned-description-server",
+  "version": "1.0.0",
+  "description": "Test fixture: MCP server with hidden prompt injection in tool description",
+  "main": "index.js",
+  "bin": {
+    "poisoned-description-server": "./index.js"
+  },
+  "type": "module"
+}

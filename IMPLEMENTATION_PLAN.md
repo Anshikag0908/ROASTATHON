@@ -48,8 +48,8 @@ People install MCP (Model Context Protocol) servers blindly. This is risky becau
 
 | Feature | Status |
 |---|---|
-| CLI skeleton (`scan`, `doctor`) | Planned |
-| Test fixtures (benign + malicious servers) | Planned |
+| CLI skeleton (`scan`, `doctor`) | Complete (Phase 1) |
+| Test fixtures (benign + malicious servers) | Complete (Phase 1) |
 | Fetch & inspect (npm packages) | Planned |
 | Docker sandbox + canary secrets + monitoring | Planned |
 | MCP client harness (initialize, list tools, call tools) | Planned |

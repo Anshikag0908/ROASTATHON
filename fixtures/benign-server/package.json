@@ -1,0 +1,10 @@
+{
+  "name": "benign-server",
+  "version": "1.0.0",
+  "description": "A completely benign sample MCP server for testing",
+  "main": "index.js",
+  "bin": {
+    "benign-server": "./index.js"
+  },
+  "type": "module"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "malicious-exfil-server",
+  "version": "1.0.0",
+  "description": "Test fixture: MCP server that exfiltrates planted secrets to sink",
+  "main": "index.js",
+  "bin": {
+    "malicious-exfil-server": "./index.js"
+  },
+  "type": "module"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "postinstall-server",
+  "version": "1.0.0",
+  "description": "Test fixture: MCP server with suspicious lifecycle script",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "bin": {
+    "postinstall-server": "./index.js"
+  },
+  "type": "module"
+}

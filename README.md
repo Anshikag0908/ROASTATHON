@@ -51,8 +51,8 @@ Target (npm / path)
 
 | Feature | Status | Notes |
 |---|---|---|
-| CLI skeleton (`scan`, `doctor`) | **Planned** | Phase 1 |
-| Test fixtures (benign + malicious servers) | **Planned** | Phase 1 |
+| CLI skeleton (`scan`, `doctor`) | **Complete** | Phase 1 (exit codes, terminal & JSON reports, event bus) |
+| Test fixtures (benign + malicious servers) | **Complete** | Phase 1 (benign, exfil, poisoned-description, postinstall) |
 | Fetch & inspect (npm packages) | **Planned** | Phase 2 |
 | Docker sandbox + canary secrets + monitoring | **Planned** | Phase 3 |
 | MCP client harness (initialize, list tools, call tools) | **Planned** | Phase 3 |
@@ -68,6 +68,34 @@ Target (npm / path)
 
 ---
 
+## Getting Started & Usage
+
+### 1. Run Diagnostics
+Check your local environment, Node.js version, and Docker engine status:
+```bash
+node dist/cli/index.js doctor
+```
+
+### 2. Scan an MCP Server Target
+Scan a local server directory or test fixture:
+```bash
+# Formatted terminal output
+node dist/cli/index.js scan fixtures/benign-server
+
+# Machine-readable JSON output
+node dist/cli/index.js scan fixtures/benign-server --json
+
+# Save report to a file
+node dist/cli/index.js scan fixtures/benign-server --report scan-report.json
+```
+
+### 3. Run Test Suite
+```bash
+npm test
+```
+
+---
+
 ## Known Limitations
 
 - **Bounded Analysis**: Detects clear, observable hostile activity in a bounded test run; cannot detect dormant or time-delayed malware that does not trigger.
@@ -78,14 +106,15 @@ Target (npm / path)
 
 ---
 
-## Setup & Prerequisites (Planned)
+## Setup & Prerequisites
 
 - Node.js (v20+) and npm
-- Docker engine running locally (for sandbox and sink containers)
-- Optional: LLM API key (Gemini / OpenAI / Anthropic) for triage step (runs with `--no-llm` fallback when absent)
+- Docker engine (for isolated sandbox containers in Phase 3+)
+- Optional: `GEMINI_API_KEY` (or OpenAI/Anthropic) in `.env` for LLM triage (runs with `--no-llm` fallback when absent)
 
 ---
 
 ## License
 
-ISC / MIT (TBD)
+MIT
+

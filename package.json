@@ -1,0 +1,36 @@
+{
+  "name": "mcpguard",
+  "version": "0.1.0",
+  "description": "Security pipeline and sandbox testing for Model Context Protocol (MCP) servers",
+  "type": "module",
+  "bin": {
+    "mcpguard": "./dist/cli/index.js"
+  },
+  "main": "./dist/cli/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node ./dist/cli/index.js",
+    "dev": "tsx src/cli/index.ts",
+    "test": "tsx --test test/**/*.test.ts"
+  },
+  "keywords": [
+    "mcp",
+    "security",
+    "sandbox",
+    "model-context-protocol",
+    "guardrails"
+  ],
+  "author": "Harshita Baphna",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.1",
+    "commander": "^13.1.0",
+    "dotenv": "^16.4.7",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
