@@ -84,31 +84,63 @@ export class Orchestrator {
     });
     this.eventBus.emit('stage:complete', { stage: 'llm', status: 'success' });
 
-    // 4. Stage: Sandbox Test (skeleton in Phase 1)
+    // 4. Stage: Sandbox Test
     this.eventBus.emit('stage:start', { stage: 'sandbox', target: targetMetadata.name });
-    this.eventBus.emit('stage:progress', { stage: 'sandbox', message: 'Initializing sandbox environment...' });
-    const sandboxEvents: SandboxEvent[] = [];
-    this.eventBus.emit('stage:complete', { stage: 'sandbox', status: 'success' });
+    this.eventBus.emit('stage:progress', {
+      stage: 'sandbox',
+      message: 'Starting isolated sandbox, planting canaries & monitoring traffic...',
+    });
+
+    const sandboxRunner = new (await import('../sandbox/runner.js')).SandboxRunner();
+    let entryFile = fetched.manifest.main || 'index.js';
+    if (typeof fetched.manifest.bin === 'string') {
+      entryFile = fetched.manifest.bin;
+    } else if (fetched.manifest.bin && typeof fetched.manifest.bin === 'object') {
+      const firstBin = Object.values(fetched.manifest.bin)[0];
+      if (typeof firstBin === 'string') entryFile = firstBin;
+    }
+
+    const sandboxSummary = await sandboxRunner.run(fetched.extractedDir, entryFile, {
+      sandboxTimeoutMs: options.timeout || this.config.sandboxTimeoutMs,
+      toolTimeoutMs: this.config.toolTimeoutMs,
+      networkAllowlist: this.config.networkAllowlist,
+    });
+
+    for (const event of sandboxSummary.events) {
+      this.eventBus.emit('sandbox:event', event);
+      if (event.kind === 'canary_in_payload') {
+        this.eventBus.emit('stage:progress', {
+          stage: 'sandbox',
+          message: 'CRITICAL: Planted canary secret matched in outbound network traffic!',
+          detail: event.detail,
+        });
+      } else if (event.kind === 'canary_file_access') {
+        this.eventBus.emit('stage:progress', {
+          stage: 'sandbox',
+          message: 'ALERT: Planted canary credential file was opened/read.',
+          detail: event.detail,
+        });
+      }
+    }
+
+    this.eventBus.emit('stage:progress', {
+      stage: 'sandbox',
+      message: `Exercised ${sandboxSummary.toolsCalled.length}/${sandboxSummary.toolsDiscovered.length} tool(s) in ${sandboxSummary.durationMs}ms`,
+    });
+    this.eventBus.emit('stage:complete', {
+      stage: 'sandbox',
+      status: sandboxSummary.completed ? 'success' : 'warn',
+    });
 
     // 5. Stage: Verdict Engine
     this.eventBus.emit('stage:start', { stage: 'verdict', target: targetMetadata.name });
 
-    let verdict: Verdict = 'SAFE';
-    const verdictReasons: string[] = [];
+    const verdictEngine = new (await import('../verdict/engine.js')).VerdictEngine();
+    const evaluation = verdictEngine.evaluate(findings, sandboxSummary, this.config.networkAllowlist);
 
-    // Evaluate findings (standard initial policy)
-    const hasCriticalOrHigh = findings.some((f) => f.severity === 'critical' || f.severity === 'high');
-    const hasMedium = findings.some((f) => f.severity === 'medium');
-
-    if (hasCriticalOrHigh) {
-      verdict = 'DANGEROUS';
-      verdictReasons.push('Critical or high severity security findings were detected.');
-    } else if (hasMedium) {
-      verdict = 'SUSPICIOUS';
-      verdictReasons.push('Medium severity findings require manual confirmation.');
-    } else {
-      verdict = 'SAFE';
-      verdictReasons.push('No suspicious or dangerous behavior detected during inspection.');
+    findings.push(...evaluation.newFindings);
+    for (const f of evaluation.newFindings) {
+      this.eventBus.emit('finding:discovered', f);
     }
 
     this.eventBus.emit('stage:complete', { stage: 'verdict', status: 'success' });
@@ -118,22 +150,15 @@ export class Orchestrator {
       rulesetVersion: '0.1.0',
       mcpguardVersion: '0.1.0',
       findings,
-      sandbox: {
-        ran: true,
-        completed: true,
-        durationMs: Date.now() - startTime,
-        events: sandboxEvents,
-        toolsDiscovered: [],
-        toolsCalled: [],
-      },
+      sandbox: sandboxSummary,
       llm: {
         used: llmUsed,
         provider: this.config.llmProvider,
         model: this.config.llmModel,
         suspicions: [],
       },
-      verdict,
-      verdictReasons,
+      verdict: evaluation.verdict,
+      verdictReasons: evaluation.reasons,
     };
 
     if (!options.keepExtracted) {

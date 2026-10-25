@@ -51,10 +51,10 @@ People install MCP (Model Context Protocol) servers blindly. This is risky becau
 | CLI skeleton (`scan`, `doctor`) | Complete (Phase 1) |
 | Test fixtures (benign + malicious servers) | Complete (Phase 1) |
 | Fetch & inspect (npm packages) | Complete (Phase 2) |
-| Docker sandbox + canary secrets + monitoring | Planned |
-| MCP client harness (initialize, list tools, call tools) | Planned |
-| Verdict engine | Planned |
-| Terminal report + JSON output | Planned |
+| Docker sandbox + canary secrets + monitoring | Complete (Phase 3) |
+| MCP client harness (initialize, list tools, call tools) | Complete (Phase 3) |
+| Verdict engine | Complete (Phase 3) |
+| Terminal report + JSON output | Complete (Phase 3) |
 | Static checks | Planned |
 | LLM triage | Planned |
 | `install` gating | Planned |
@@ -494,6 +494,7 @@ All fixtures live in `fixtures/`, are clearly labeled, and malicious ones **only
 | 2026-10-25 | Defaults: 30s total sandbox timeout, 5s tool timeout, 0.5 CPU, 512MB RAM, 64 PIDs, node:20-alpine image | Config module spec | User ("ok") |
 | 2026-10-25 | Reports: Terminal summary + JSON for MVP, HTML/live in Phase 7 | Reporter spec | User ("ok") |
 | 2026-10-25 | Commit discipline: `phase-N:` prefix, one concern per commit | Git log | User ("ok") |
+| 2026-10-25 | Phase 3 Sandbox & Sink: node:20-alpine with inotify-tools, internal Docker net, canary matcher, stdio MCP harness | Spike proposal approved | User ("ok") |
 
 ---
 

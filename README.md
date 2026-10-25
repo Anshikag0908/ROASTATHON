@@ -54,10 +54,10 @@ Target (npm / path)
 | CLI skeleton (`scan`, `doctor`) | **Complete** | Phase 1 (exit codes, terminal & JSON reports, event bus) |
 | Test fixtures (benign + malicious servers) | **Complete** | Phase 1 (benign, exfil, poisoned-description, postinstall) |
 | Fetch & inspect (npm packages) | **Complete** | Phase 2 (registry resolution, hash verification, safe extraction) |
-| Docker sandbox + canary secrets + monitoring | **Planned** | Phase 3 |
-| MCP client harness (initialize, list tools, call tools) | **Planned** | Phase 3 |
-| Verdict engine | **Planned** | Phase 3 |
-| Terminal report + JSON output | **Planned** | Phase 3 |
+| Docker sandbox + canary secrets + monitoring | **Complete** | Phase 3 (canaries planted, inotify/stats, network sink capture) |
+| MCP client harness (initialize, list tools, call tools) | **Complete** | Phase 3 (stdio JSON-RPC driver, schema arg generation) |
+| Verdict engine | **Complete** | Phase 3 (D1, D2, D3, fail-closed incomplete analysis) |
+| Terminal report + JSON output | **Complete** | Phase 3 (evidence citation, formatted verdicts, clean JSON) |
 | Static checks | **Planned** | Phase 4 |
 | LLM triage | **Planned** | Phase 5 |
 | `install` gating | **Planned** | Phase 6 |
