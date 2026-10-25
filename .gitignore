@@ -1,0 +1,32 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Canary secrets & runtime generated tokens
+*canary*
+*.canary
+canaries/
+
+# Logs and sandbox artifacts
+*.log
+logs/
+sandbox-logs/
+sandbox_events.jsonl
+
+# Temporary and extraction directories
+tmp/
+temp/
+.tmp/
+
+# Dependency and build directories
+node_modules/
+dist/
+build/
+coverage/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
